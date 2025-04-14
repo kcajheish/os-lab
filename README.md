@@ -1,6 +1,6 @@
 ### Lab
-- [x] [Xv6 and Unix utilities](https://pdos.csail.mit.edu/6.828/2021/labs/util.html)
-- [ ] [system calls](https://pdos.csail.mit.edu/6.828/2021/labs/syscall.html)
+- [x] [Xv6 and Unix utilities](https://pdos.csail.mit.edu/6.828/2021/labs/util.html)/[code](https://github.com/kcajheish/os-lab/commit/98078dc83947036617ac81d44c22b61242cb1b8d)
+- [x] [system calls](https://pdos.csail.mit.edu/6.828/2021/labs/syscall.html)/[code](https://github.com/kcajheish/os-lab/commit/2fce0ebd77a0b45c2ed6f2fb8d840bd623cf7090)
 - [ ] [page tables](https://pdos.csail.mit.edu/6.828/2021/labs/pgtbl.html)
 - [ ] [traps](https://pdos.csail.mit.edu/6.828/2021/labs/traps.html)
 - [ ] [Copy-on-Write Fork for xv6](https://pdos.csail.mit.edu/6.828/2021/labs/cow.html)
