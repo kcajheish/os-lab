@@ -46,7 +46,7 @@ sys_sbrk(void)
 
   if(argint(0, &n) < 0)
     return -1;
-  
+
   addr = myproc()->sz;
   if(growproc(n) < 0)
     return -1;
@@ -76,14 +76,29 @@ sys_sleep(void)
 }
 
 
-#ifdef LAB_PGTBL
 int
 sys_pgaccess(void)
 {
   // lab pgtbl: your code here.
+  uint64 base;
+  int _mask = 0;
+  int len;
+  int mask;
+  argaddr(0, &base);
+  argint(1, &len);
+  argint(2, &mask);
+  struct proc *p = myproc();
+  for(uint64 i = 0; i < len; i++) {
+    uint64 va = base + i * PGSIZE;
+    pte_t *pte = walk(p->pagetable, va, 0);
+    if(*pte & PTE_A) {
+      _mask |= (1 << i);
+      *pte ^= PTE_A;
+    }
+  }
+  copyout(p->pagetable, mask, (char* )&_mask, sizeof(uint));
   return 0;
 }
-#endif
 
 uint64
 sys_kill(void)

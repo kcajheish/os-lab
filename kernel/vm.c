@@ -45,7 +45,7 @@ kvmmake(void)
 
   // map kernel stacks
   proc_mapstacks(kpgtbl);
-  
+
   return kpgtbl;
 }
 
@@ -142,7 +142,7 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
 
   if(size == 0)
     panic("mappages: size");
-  
+
   a = PGROUNDDOWN(va);
   last = PGROUNDDOWN(va + size - 1);
   for(;;){
@@ -333,11 +333,42 @@ void
 uvmclear(pagetable_t pagetable, uint64 va)
 {
   pte_t *pte;
-  
+
   pte = walk(pagetable, va, 0);
   if(pte == 0)
     panic("uvmclear");
   *pte &= ~PTE_U;
+}
+
+
+
+void _vmprint(pagetable_t pagetable, int level, char *prefix) {
+  int len = strlen(prefix);
+  char next_prefix[len + 4];
+  char *p = next_prefix;
+  memmove(p, prefix, len+1);
+  p += len;
+  memmove(p, " ..", 4);
+
+  // printf("len: %d level:%d prefix:%s\n", len, level, prefix);
+  for(int i = 0; i < 512; i++) {
+    pte_t pte = pagetable[i];
+    // Only print valid page table entry.
+    if (pte & PTE_V) {
+      uint64 child = PTE2PA(pte);
+      printf("%s%d: pte %p pa %p\n", prefix, i, pte, child);
+      // Haven't reached leaf yet; recursively visit next page table;
+      if (level < 3){
+        _vmprint((pagetable_t) child, level + 1, next_prefix);
+      }
+    }
+  }
+}
+
+void
+vmprint(pagetable_t pagetable) {
+  printf("page table %p\n", pagetable);
+  _vmprint(pagetable, 1, "..");
 }
 
 // Copy from kernel to user.
