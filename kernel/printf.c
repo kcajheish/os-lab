@@ -132,3 +132,14 @@ printfinit(void)
   initlock(&pr.lock, "pr");
   pr.locking = 1;
 }
+
+void backtrace(void){
+  uint64 function_pointer = r_fp();
+  uint64 stack_pointer = PGROUNDDOWN(function_pointer);
+  uint64 return_address;
+  while (function_pointer <= stack_pointer + PGSIZE - 1) {
+    return_address = *((uint64 *)(function_pointer - 8));
+    printf("%p\n", return_address);
+    function_pointer = * ((uint64 *) (function_pointer - 16));
+  }
+}

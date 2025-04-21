@@ -22,17 +22,17 @@ fetchaddr(uint64 addr, uint64 *ip)
 // Fetch the nul-terminated string at addr from the current process.
 // Returns length of string, not including nul, or -1 for error.
 int
-fetchstr(uint64 addr, char *buf, int max)
+fetchstr(uint64 addr, char *buf, int max) // exec -> fetchstr
 {
   struct proc *p = myproc();
-  int err = copyinstr(p->pagetable, buf, addr, max);
+  int err = copyinstr(p->pagetable, buf, addr, max); // copy string from addr(user space) to buf(kernel space)
   if(err < 0)
     return err;
   return strlen(buf);
 }
 
 static uint64
-argraw(int n)
+argraw(int n) // retrieve user an registers from process trapframe.
 {
   struct proc *p = myproc();
   switch (n) {
@@ -55,7 +55,7 @@ argraw(int n)
 
 // Fetch the nth 32-bit system call argument.
 int
-argint(int n, int *ip)
+argint(int n, int *ip) // sys_xxx -> argint
 {
   *ip = argraw(n);
   return 0;
@@ -65,7 +65,7 @@ argint(int n, int *ip)
 // Doesn't check for legality, since
 // copyin/copyout will do that.
 int
-argaddr(int n, uint64 *ip)
+argaddr(int n, uint64 *ip) // sys_xxxx -> argaddr
 {
   *ip = argraw(n);
   return 0;
@@ -104,6 +104,8 @@ extern uint64 sys_unlink(void);
 extern uint64 sys_wait(void);
 extern uint64 sys_write(void);
 extern uint64 sys_uptime(void);
+extern uint64 sys_sigalarm(void);
+extern uint64 sys_sigreturn(void);
 
 static uint64 (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -127,6 +129,8 @@ static uint64 (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
+[SYS_sigalarm] sys_sigalarm,
+[SYS_sigreturn] sys_sigreturn,
 };
 
 void
@@ -137,10 +141,33 @@ syscall(void)
 
   num = p->trapframe->a7;
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
-    p->trapframe->a0 = syscalls[num]();
+    p->trapframe->a0 = syscalls[num](); // return positive number or zero to indicate success.
   } else {
     printf("%d %s: unknown sys call %d\n",
             p->pid, p->name, num);
-    p->trapframe->a0 = -1;
+    p->trapframe->a0 = -1; // return negative number to indicate error.
   }
+}
+
+uint64
+sys_sigalarm(void)
+{
+  struct proc *p = myproc();
+  uint64 fp;
+  if(argint(0, &p->interrupt_at) < -1)
+    return -1;
+  if(argaddr(1, &fp) < -1)
+    return -1;
+  p->handler = (void (*)()) fp;
+  p->ticks = 0;
+  return 0;
+}
+
+uint64
+sys_sigreturn(void)
+{
+  struct proc *p = myproc();
+  memmove(p->trapframe, &p->recover, sizeof(p->recover));
+  p->ticks = 0;
+  return 0;
 }
