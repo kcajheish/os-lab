@@ -2,7 +2,7 @@
 - [x] [Xv6 and Unix utilities](https://pdos.csail.mit.edu/6.828/2021/labs/util.html)/[code](https://github.com/kcajheish/os-lab/commit/98078dc83947036617ac81d44c22b61242cb1b8d)
 - [x] [system calls](https://pdos.csail.mit.edu/6.828/2021/labs/syscall.html)/[code](https://github.com/kcajheish/os-lab/commit/2fce0ebd77a0b45c2ed6f2fb8d840bd623cf7090)
 - [x] [page tables](https://pdos.csail.mit.edu/6.828/2021/labs/pgtbl.html)/[code](https://github.com/kcajheish/os-lab/commit/81c2101081eab406201d560fe6a54afaa64bd97a)
-- [ ] [traps](https://pdos.csail.mit.edu/6.828/2021/labs/traps.html)
+- [x] [traps](https://pdos.csail.mit.edu/6.828/2021/labs/traps.html)/[code](https://github.com/kcajheish/os-lab/commit/420611c905424a2ba6dd0a8132a67cec8107bc9a)
 - [ ] [Copy-on-Write Fork for xv6](https://pdos.csail.mit.edu/6.828/2021/labs/cow.html)
 - [ ] [Multithreading](https://pdos.csail.mit.edu/6.828/2021/labs/thread.html)
 - [ ] [networking](https://pdos.csail.mit.edu/6.828/2021/labs/net.html)
