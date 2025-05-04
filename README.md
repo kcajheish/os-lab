@@ -4,7 +4,7 @@
 - [x] [page tables](https://pdos.csail.mit.edu/6.828/2021/labs/pgtbl.html)/[code](https://github.com/kcajheish/os-lab/commit/81c2101081eab406201d560fe6a54afaa64bd97a)
 - [x] [traps](https://pdos.csail.mit.edu/6.828/2021/labs/traps.html)/[code](https://github.com/kcajheish/os-lab/commit/420611c905424a2ba6dd0a8132a67cec8107bc9a)
 - [ ] [Copy-on-Write Fork for xv6](https://pdos.csail.mit.edu/6.828/2021/labs/cow.html)
-- [ ] [Multithreading](https://pdos.csail.mit.edu/6.828/2021/labs/thread.html)
+- [x] [Multithreading](https://pdos.csail.mit.edu/6.828/2021/labs/thread.html)/[code](https://github.com/kcajheish/os-lab/commit/cf245eee666c3e2a3d1e8c22faca5eb7810cd147)
 - [ ] [networking](https://pdos.csail.mit.edu/6.828/2021/labs/net.html)
 - [ ] [locks](https://pdos.csail.mit.edu/6.828/2021/labs/lock.html)
 - [ ] [file system](https://pdos.csail.mit.edu/6.828/2021/labs/fs.html)
