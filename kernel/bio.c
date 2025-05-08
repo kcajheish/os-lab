@@ -30,25 +30,101 @@ struct {
   // Linked list of all buffers, through prev/next.
   // Sorted by how recently the buffer was used.
   // head.next is most recent, head.prev is least.
-  struct buf head;
 } bcache;
+
+struct {
+  struct buf buckets[BUCKETS];
+  struct spinlock locks[BUCKETS];
+} htable;
+
+int
+hash(uint blockno)
+{
+  return blockno % BUCKETS;
+}
+
+void
+hlock(uint no)
+{
+  acquire(&htable.locks[hash(no)]);
+}
+
+void
+hrelease(uint no)
+{
+  release(&htable.locks[hash(no)]);
+}
+
+struct buf*
+_search(uint blockno)
+{
+  struct buf *head = &htable.buckets[hash(blockno)];
+  for (struct buf *node=head->next; node != head; node=node->next) {
+    if (node->blockno == blockno) {
+      return node;
+    }
+  }
+  return 0;
+}
+
+struct buf*
+search(uint blockno)
+{
+  hlock(blockno);
+  struct buf *node = _search(blockno);
+  hrelease(blockno);
+  return node;
+}
+
+void
+insert(struct buf *new_b)
+{
+  uint blockno = new_b->blockno;
+  hlock(blockno);
+  struct buf *b, *head;
+  b = head = &htable.buckets[hash(blockno)];
+
+  while (b->next != head) {
+    b = b->next;
+  }
+  b->next->prev = new_b;
+  new_b->next = b->next;
+  b->next = new_b;
+  new_b->prev = b;
+  hrelease(blockno);
+}
+
+void
+remove(uint blockno){
+  hlock(blockno);
+  struct buf *b;
+  b = _search(blockno);
+  if (b) {
+    b->prev->next = b->next;
+    b->next->prev = b->prev;
+  }
+  hrelease(blockno);
+}
 
 void
 binit(void)
 {
+
+
+  initlock(&bcache.lock, "bcache_main");
   struct buf *b;
-
-  initlock(&bcache.lock, "bcache");
-
-  // Create linked list of buffers
-  bcache.head.prev = &bcache.head;
-  bcache.head.next = &bcache.head;
   for(b = bcache.buf; b < bcache.buf+NBUF; b++){
-    b->next = bcache.head.next;
-    b->prev = &bcache.head;
     initsleeplock(&b->lock, "buffer");
-    bcache.head.next->prev = b;
-    bcache.head.next = b;
+    initlock(&b->splock, "buffer_splock");
+  }
+  for(int i=0; i < BUCKETS; i++){
+    int size = 8 + 1;
+    char name[size];
+    snprintf(name, size, "bcache_%d", i);
+    initlock(&htable.locks[i], name);
+    b = &htable.buckets[i];
+    b->prev = b;
+    b->next = b;
   }
 }
 
@@ -59,32 +135,47 @@ static struct buf*
 bget(uint dev, uint blockno)
 {
   struct buf *b;
+  b = search(blockno);
+  if (b) {
+    acquire(&b->splock);
+    b->refcnt++;
+    release(&b->splock);
+    acquiresleep(&b->lock);
+    return b;
+  }
 
+  b = bcache.buf;
+  uint min = -1U;
+  struct buf *lru_b = 0;
   acquire(&bcache.lock);
-
-  // Is the block already cached?
-  for(b = bcache.head.next; b != &bcache.head; b = b->next){
-    if(b->dev == dev && b->blockno == blockno){
-      b->refcnt++;
-      release(&bcache.lock);
-      acquiresleep(&b->lock);
-      return b;
+  for (int i = 0; i < NBUF; i++) {
+    acquire(&b->splock);
+    if (!b->refcnt && b->last_timestamp < min){
+      min = b->last_timestamp;
+      lru_b = b;
     }
+    release(&b->splock);
+    b++;
   }
 
-  // Not cached.
-  // Recycle the least recently used (LRU) unused buffer.
-  for(b = bcache.head.prev; b != &bcache.head; b = b->prev){
-    if(b->refcnt == 0) {
-      b->dev = dev;
-      b->blockno = blockno;
-      b->valid = 0;
-      b->refcnt = 1;
-      release(&bcache.lock);
-      acquiresleep(&b->lock);
-      return b;
-    }
+  if (lru_b){
+    remove(lru_b->blockno);
+    acquire(&lru_b->splock);
+    lru_b->last_timestamp = ticks;
+
+    lru_b->dev = dev;
+    lru_b->blockno = blockno;
+    lru_b->valid = 0;
+    lru_b->refcnt = 1;
+    release(&lru_b->splock);
+    release(&bcache.lock);
+
+    insert(lru_b);
+
+    acquiresleep(&lru_b->lock);
+    return lru_b;
   }
+  release(&bcache.lock);
   panic("bget: no buffers");
 }
 
@@ -121,19 +212,12 @@ brelse(struct buf *b)
 
   releasesleep(&b->lock);
 
-  acquire(&bcache.lock);
+  acquire(&b->splock);
   b->refcnt--;
   if (b->refcnt == 0) {
-    // no one is waiting for it.
-    b->next->prev = b->prev;
-    b->prev->next = b->next;
-    b->next = bcache.head.next;
-    b->prev = &bcache.head;
-    bcache.head.next->prev = b;
-    bcache.head.next = b;
+    b->last_timestamp = ticks;
   }
-  
-  release(&bcache.lock);
+  release(&b->splock);
 }
 
 void
