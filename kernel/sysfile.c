@@ -16,6 +16,8 @@
 #include "file.h"
 #include "fcntl.h"
 
+#define MAX_DEPTH 10
+
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
 static int
@@ -289,7 +291,7 @@ sys_open(void)
   char path[MAXPATH];
   int fd, omode;
   struct file *f;
-  struct inode *ip;
+  struct inode *ip, *next;
   int n;
 
   if((n = argstr(0, path, MAXPATH)) < 0 || argint(1, &omode) < 0)
@@ -309,6 +311,27 @@ sys_open(void)
       return -1;
     }
     ilock(ip);
+    if(!(omode & O_NOFOLLOW) && ip->type == T_SYMLINK){
+      int depth = 1;
+      while(ip->type == T_SYMLINK){
+        readi(ip, 0, (uint64)&path, 0, MAXPATH);
+        next = namei(path);
+        if(!next){
+          iunlockput(ip);
+          end_op();
+          return -1;
+        }
+        iunlockput(ip);
+        ip = next;
+        ilock(ip);
+        depth += 1;
+        if (depth > MAX_DEPTH){
+          iunlockput(ip);
+          end_op();
+          return -1;
+        }
+      };
+    }
     if(ip->type == T_DIR && omode != O_RDONLY){
       iunlockput(ip);
       end_op();
@@ -393,7 +416,7 @@ sys_chdir(void)
   char path[MAXPATH];
   struct inode *ip;
   struct proc *p = myproc();
-  
+
   begin_op();
   if(argstr(0, path, MAXPATH) < 0 || (ip = namei(path)) == 0){
     end_op();
@@ -482,5 +505,56 @@ sys_pipe(void)
     fileclose(wf);
     return -1;
   }
+  return 0;
+}
+
+uint64
+sys_symlink(void){
+  char target[MAXPATH], path[MAXPATH], name[DIRSIZ];
+
+  if(argstr(0, target, MAXPATH) < 0 || argstr(1, path, MAXPATH) < 0)
+    return -1;
+  struct inode *target_inode, *parent, *link_node;
+
+  begin_op();
+  target_inode=namei(target);
+  if(target_inode){
+    ilock(target_inode);
+    if(target_inode->type == T_DIR) {
+      iunlockput(target_inode);
+      end_op();
+      return -1;
+    }
+    iunlockput(target_inode);
+  }
+
+  if((parent = nameiparent(path, name)) == 0) {
+    end_op();
+    return -1;
+  }
+
+  ilock(parent);
+  if(dirlookup(parent, name, 0) != 0){
+    iunlockput(parent);
+    end_op();
+    return -1;
+  }
+
+
+  link_node = ialloc(parent->dev, T_SYMLINK);
+  ilock(link_node);
+  link_node->nlink = 1;
+  iupdate(link_node);
+  if(dirlink(parent, name, link_node->inum) < 0) {
+    iunlockput(link_node);
+    iunlockput(parent);
+    end_op();
+    return -1;
+  }
+
+  writei(link_node, 0, (uint64) &target, 0, MAXPATH);
+  iunlockput(link_node);
+  iunlockput(parent);
+  end_op();
   return 0;
 }
