@@ -7,5 +7,5 @@
 - [x] [Multithreading](https://pdos.csail.mit.edu/6.828/2021/labs/thread.html)/[code](https://github.com/kcajheish/os-lab/commit/cf245eee666c3e2a3d1e8c22faca5eb7810cd147)
 - [ ] [networking](https://pdos.csail.mit.edu/6.828/2021/labs/net.html)
 - [x] [locks](https://pdos.csail.mit.edu/6.828/2021/labs/lock.html)/[code](https://github.com/kcajheish/os-lab/commit/d03a5003e3d0ced88446d12389e580f5a1b5de93)
-- [ ] [file system](https://pdos.csail.mit.edu/6.828/2021/labs/fs.html)
+- [x] [file system](https://pdos.csail.mit.edu/6.828/2021/labs/fs.html)/[code](https://github.com/kcajheish/os-lab/commit/b5857bbc91bf71580cbb787a5e854a762afbe164)
 - [ ] [mmap](https://pdos.csail.mit.edu/6.828/2021/labs/mmap.html)
