@@ -8,4 +8,4 @@
 - [ ] [networking](https://pdos.csail.mit.edu/6.828/2021/labs/net.html)
 - [x] [locks](https://pdos.csail.mit.edu/6.828/2021/labs/lock.html)/[code](https://github.com/kcajheish/os-lab/commit/d03a5003e3d0ced88446d12389e580f5a1b5de93)
 - [x] [file system](https://pdos.csail.mit.edu/6.828/2021/labs/fs.html)/[code](https://github.com/kcajheish/os-lab/commit/b5857bbc91bf71580cbb787a5e854a762afbe164)
-- [ ] [mmap](https://pdos.csail.mit.edu/6.828/2021/labs/mmap.html)
+- [x] [mmap](https://pdos.csail.mit.edu/6.828/2021/labs/mmap.html)/[code](https://github.com/kcajheish/os-lab/commit/31f70edd64e01b1ad728421e24da285ec8df6aec)
