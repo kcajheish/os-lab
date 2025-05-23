@@ -15,6 +15,9 @@
 #include "sleeplock.h"
 #include "file.h"
 #include "fcntl.h"
+#include "memlayout.h"
+
+#define max(a, b) (a > b ? a : b)
 
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
@@ -393,7 +396,7 @@ sys_chdir(void)
   char path[MAXPATH];
   struct inode *ip;
   struct proc *p = myproc();
-  
+
   begin_op();
   if(argstr(0, path, MAXPATH) < 0 || (ip = namei(path)) == 0){
     end_op();
@@ -481,6 +484,104 @@ sys_pipe(void)
     fileclose(rf);
     fileclose(wf);
     return -1;
+  }
+  return 0;
+}
+
+
+uint64
+sys_mmap(void){
+  uint64 addr;
+  int length, prot, flags, offset;
+  struct file *f;
+  struct proc *p;
+  struct vma  *vma = 0;
+  if(argaddr(0, &addr) < 0 || argint(1, &length) < 0 || argint(2, &prot) < 0
+    || argint(3, &flags) < 0 || argfd(4, 0, &f) < 0 || argint(5, &offset)) {
+    return -1;
+  }
+
+  p = myproc();
+  if(addr >= TRAPFRAME)
+    return -1;
+  if(flags != MAP_SHARED && flags != MAP_PRIVATE)
+    return -1;
+  if(flags == MAP_SHARED && f->writable == 0 && (prot & PROT_WRITE))
+    return -1;
+
+  // Find a free vma; find start of virtual address;
+  for(int i = 0; i < VMA_SIZE; i++) {
+    if (!vma && !p->vma_arr[i].pin) {
+      vma = &p->vma_arr[i];
+    }
+    if(p->vma_arr[i].pin){
+      addr = max(addr, p->vma_arr[i].addr+p->vma_arr[i].length);
+    }
+  }
+
+  // Run out of vma.
+  if (!vma)
+    return -1;
+
+  if (!addr)
+    addr = VIRTUAL_MEMORY_AREA;
+
+  addr = PGROUNDUP(addr); // Page aligned; current or next page.
+  vma->addr = addr;
+  vma->prot = prot;
+  vma->flags = flags;
+  vma->offset = offset;
+  vma->length = length;
+  filedup(f); // Increase reference count of the file.
+  vma->f = f;
+  vma->pin = 1;
+
+  return addr;
+}
+
+uint64
+sys_munmap(void){
+  uint64 addr, start, end;
+  int length;
+  struct vma *vma = 0;
+  struct proc *p;
+  if(argaddr(0, &addr) < 0 || argint(1, &length) < 0) {
+    return -1;
+  }
+  p = myproc();
+  for(int i = 0; i < VMA_SIZE; i++){
+    if(p->vma_arr[i].addr <= addr && p->vma_arr[i].addr + p->vma_arr[i].length >= addr + length){
+      vma = &p->vma_arr[i];
+      break;
+    }
+    vma++;
+  }
+
+  if(!vma)
+    return -1;
+
+  if(!length)
+    return 0;
+
+  start = PGROUNDDOWN(addr);
+  end = PGROUNDDOWN(addr+length-1);
+  if (start != vma->addr && end != PGROUNDDOWN(vma->addr + vma->length-1)){
+    // Unexpected unmap range.
+    // Not going to punch a hole in the middle.
+    return -1;
+  }
+  for(addr=start; addr<=end; addr+=PGSIZE){
+    unmap_vma(p->pagetable, vma, addr);
+  }
+
+  if(length == vma->length){
+    vma->pin = 0;
+    fileclose(vma->f);
+  } else if (vma->addr == start){
+    vma->addr = end + PGSIZE;
+    vma->length = (end-start+1) * PGSIZE;
+  } else if (vma->addr+vma->length == end){
+    vma->length = (end-start+1) * PGSIZE;
   }
   return 0;
 }

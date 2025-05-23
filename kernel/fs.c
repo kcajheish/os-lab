@@ -20,11 +20,13 @@
 #include "fs.h"
 #include "buf.h"
 #include "file.h"
+#include "memlayout.h"
+#include "fcntl.h"
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 // there should be one superblock per disk device, but we run with
 // only one device
-struct superblock sb; 
+struct superblock sb;
 
 // Read the super block.
 static void
@@ -180,7 +182,7 @@ void
 iinit()
 {
   int i = 0;
-  
+
   initlock(&itable.lock, "itable");
   for(i = 0; i < NINODE; i++) {
     initsleeplock(&itable.inode[i].lock, "inode");
@@ -476,6 +478,28 @@ readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n)
   return tot;
 }
 
+void
+read_page(struct file *file, uint64 dest, uint offset, uint size) {
+  ilock(file->ip);
+  readi(file->ip, 1, dest, offset, size);
+  iunlock(file->ip);
+}
+
+int
+unmap_vma(pagetable_t pagetable, struct vma *vma, uint64 uaddr){
+  pte_t *pte = walk(pagetable, uaddr, 0);
+  if (!(PTE_FLAGS(*pte) & PTE_V))
+    return -1;
+  if((vma->flags & MAP_SHARED) && (PTE_FLAGS(*pte) & PTE_D)){
+    begin_op();
+    ilock(vma->f->ip);
+    writei(vma->f->ip, 1, uaddr, vma->offset + (uaddr - vma->addr), PGSIZE);
+    iunlock(vma->f->ip);
+    end_op();
+  }
+  uvmunmap(pagetable, uaddr, 1, 1);
+  return 0;
+}
 // Write data to inode.
 // Caller must hold ip->lock.
 // If user_src==1, then src is a user virtual address;
